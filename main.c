@@ -129,8 +129,14 @@ void main(void)
 
 	if (selectedCard != NULL) 
 	{
-	    selectedCard->rect.x = mousePosition.x - CARD_HALF_WIDTH;
-	    selectedCard->rect.y = mousePosition.y - CARD_HALF_HEIGHT;
+	    Vector2 delta = GetMouseDelta();
+	    Card* currentCard = selectedCard;
+	    while (currentCard != NULL)
+	    {
+		currentCard->rect.x += delta.x;
+		currentCard->rect.y += delta.y;
+		currentCard = currentCard->next;
+	    }
 	}
 
 	BeginDrawing();
