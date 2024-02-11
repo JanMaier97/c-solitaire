@@ -11,6 +11,12 @@
 #define CARD_COUNT 5
 #define CARD_STACK_COUNT 2
 
+//#define PLATFORM_WEB
+
+#if defined(PLATFORM_WEB)
+    #include <emscripten/emscripten.h>
+#endif
+
 typedef struct Card {
     Rectangle rect;
     int value;
@@ -18,6 +24,46 @@ typedef struct Card {
     struct Card* prev;
     struct Card* next;
 } Card;
+
+void InitGame(void);
+void UpdateGame(void);
+void DrawGame(void);
+void UpdateDrawFrame(void);
+
+Card* GetSelectedCard(Card cards[CARD_COUNT]);
+Card* FindLast(Card *card);
+void AppendCard(Card* card, Card* cardToAppend);
+void ResetCardPosition(Card* card);
+void DrawCards(Card* head);
+
+Card cards[CARD_COUNT] = {0};
+Card* cardStacks[CARD_STACK_COUNT] = {0};
+Card* selectedCard = NULL;
+Card* dropTargetCard = NULL;
+
+int main(void)
+{
+    SetTraceLogLevel(LOG_DEBUG);
+
+
+    InitWindow(800, 600, "Solitaire");
+    InitGame();
+
+#if defined(PLATFORM_WEB)
+    emscripten_set_main_loop(UpdateDrawFrame, 0, 1);
+#else
+    SetTargetFPS(60);
+
+    while(!WindowShouldClose())
+    {
+	UpdateDrawFrame();
+    }
+
+#endif
+    CloseWindow();
+
+    return 0;
+}
 
 Card* GetSelectedCard(Card cards[CARD_COUNT]) 
 {
@@ -160,12 +206,9 @@ void ResetCardPosition(Card* card)
     }
 }
 
-void main(void)
+void InitGame(void)
 {
-    SetTraceLogLevel(LOG_DEBUG);
-
     TraceLog(LOG_DEBUG, "Initialize cards");
-    Card cards[CARD_COUNT] = {0};
     for (int i = 0; i < CARD_COUNT; i++) 
     {
 	Rectangle rect = (Rectangle){100 + CARD_WIDTH*i + 50*i, 100, CARD_WIDTH, CARD_HEIGHT};
@@ -174,7 +217,6 @@ void main(void)
     }
 
     TraceLog(LOG_DEBUG, "Initialize card stacks");
-    Card* cardStacks[CARD_STACK_COUNT] = {0};
 
     AppendCard(&cards[0], &cards[1]);
     AppendCard(&cards[0], &cards[2]);
@@ -186,95 +228,103 @@ void main(void)
     ResetCardPosition(cardStacks[0]);
     ResetCardPosition(cardStacks[1]);
 
-    InitWindow(800, 600, "Solitair");
-    SetTargetFPS(60);
-
-    Card* selectedCard = NULL;
-    Card* dropTargetCard = NULL;
-    while(!WindowShouldClose())
+    for (int i = 0; i < CARD_COUNT; i++)
     {
-	Vector2 mousePosition = GetMousePosition();
-	if (IsMouseButtonPressed(0))
-	{
-	    selectedCard = GetSelectedCard(cards);
+	TraceLog(LOG_DEBUG, "Card %d position: (%f, %f)", cards[i].value, cards[i].rect.x, cards[i].rect.y);
+    }
+}
 
-	    if (selectedCard != NULL)
+void UpdateGame(void)
+{
+    Vector2 mousePosition = GetMousePosition();
+    if (IsMouseButtonPressed(0))
+    {
+	TraceLog(LOG_DEBUG, "Mouse Position: (%f, %f)", mousePosition.x, mousePosition.y);
+	selectedCard = GetSelectedCard(cards);
+
+	if (selectedCard != NULL)
+	{
+	    TraceLog(LOG_DEBUG, "Selected card %d", selectedCard->value);
+	}
+	else 
+	{
+	    TraceLog(LOG_DEBUG, "No card under cursor");
+	}
+    }
+
+    if (IsMouseButtonReleased(0)) {
+	TraceLog(LOG_DEBUG, "Dropping selected card");
+
+	if (dropTargetCard != NULL)
+	{
+	    AppendCard(dropTargetCard, selectedCard);
+	    dropTargetCard->isHighlighted = false;
+	    dropTargetCard = NULL;
+	}
+	ResetCardPosition(selectedCard);
+
+	selectedCard = NULL;
+    }
+
+    if (selectedCard != NULL) 
+    {
+	// move card with mouse
+	Vector2 delta = GetMouseDelta();
+	Card* currentCard = selectedCard;
+	while (currentCard != NULL)
+	{
+	    currentCard->rect.x += delta.x;
+	    currentCard->rect.y += delta.y;
+	    currentCard = currentCard->next;
+	}
+
+	// detect collisions with cards
+	for (int i = 0; i < CARD_STACK_COUNT; i++)
+	{
+	    Card* topCard = FindLast(cardStacks[i]);
+	    if (topCard == selectedCard)
 	    {
-		TraceLog(LOG_DEBUG, "Selected card %d", selectedCard->value);
+		continue;
+	    }
+
+	    if (CheckCollisionPointRec(mousePosition, topCard->rect)) 
+	    {
+		topCard->isHighlighted = true;
+		dropTargetCard = topCard;
 	    }
 	    else 
 	    {
-		TraceLog(LOG_DEBUG, "No card under cursor");
-	    }
-	}
-	
-	if (IsMouseButtonReleased(0)) {
-	    TraceLog(LOG_DEBUG, "Dropping selected card");
+		topCard->isHighlighted = false;
 
-	    if (dropTargetCard != NULL)
-	    {
-		AppendCard(dropTargetCard, selectedCard);
-		dropTargetCard->isHighlighted = false;
-		dropTargetCard = NULL;
-	    }
-	    ResetCardPosition(selectedCard);
-
-	    selectedCard = NULL;
-	}
-
-	if (selectedCard != NULL) 
-	{
-	    // move card with mouse
-	    Vector2 delta = GetMouseDelta();
-	    Card* currentCard = selectedCard;
-	    while (currentCard != NULL)
-	    {
-		currentCard->rect.x += delta.x;
-		currentCard->rect.y += delta.y;
-		currentCard = currentCard->next;
-	    }
-
-	    // detect collisions with cards
-	    for (int i = 0; i < CARD_STACK_COUNT; i++)
-	    {
-		Card* topCard = FindLast(cardStacks[i]);
-		if (topCard == selectedCard)
+		// reset card for drag and drop 
+		if (topCard == dropTargetCard)
 		{
-		    continue;
-		}
-
-		if (CheckCollisionPointRec(mousePosition, topCard->rect)) 
-		{
-		    topCard->isHighlighted = true;
-		    dropTargetCard = topCard;
-		}
-		else 
-		{
-		    topCard->isHighlighted = false;
-		    
-		    // reset card for drag and drop 
-		    if (topCard == dropTargetCard)
-		    {
-			dropTargetCard = NULL;
-		    }
+		    dropTargetCard = NULL;
 		}
 	    }
 	}
+    }
+}
 
-	BeginDrawing();
-	ClearBackground(RED);
+void DrawGame(void)
+{
+    BeginDrawing();
+    ClearBackground(RED);
 
-	// Draw all cards
-        for (int i = 0; i < CARD_STACK_COUNT; i++)
-	{
-	    DrawCards(cardStacks[i]);
-	}
-
-	// Draw selected card stack above all else
-	DrawCards(selectedCard);
-
-	EndDrawing();
+    // Draw all cards
+    for (int i = 0; i < CARD_STACK_COUNT; i++)
+    {
+	DrawCards(cardStacks[i]);
     }
 
-    CloseWindow();
+    // Draw selected card stack above all else
+    DrawCards(selectedCard);
+
+    EndDrawing();
+}
+
+void UpdateDrawFrame(void)
+{
+    UpdateGame();
+    DrawGame();
 }
