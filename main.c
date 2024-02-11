@@ -13,6 +13,7 @@
 
 typedef struct Card {
     Rectangle rect;
+    int value;
     struct Card* next;
 } Card;
 
@@ -34,6 +35,18 @@ void DrawCards(Card* head)
 	    currentRect.width - CARD_BORDER_WIDTH*2,
 	    currentRect.height - CARD_BORDER_WIDTH*2,
 	    WHITE);
+
+	const char* valueText = TextFormat("%d", currentCard->value);
+	int fontSize = 12;
+	int yOffset = 12;
+	int textWidth = MeasureText(valueText, fontSize);
+	DrawText(
+	    valueText,
+	    currentRect.x + CARD_HALF_WIDTH - textWidth/2,
+	    currentRect.y + yOffset,
+	    fontSize,
+	    BLACK
+	);
 
 	currentCard = currentCard->next;
     }
@@ -79,7 +92,7 @@ void main(void)
     for (int i = 0; i < CARD_COUNT; i++) 
     {
 	Rectangle rect = (Rectangle){100 + CARD_WIDTH*i + 50*i, 100, CARD_WIDTH, CARD_HEIGHT};
-	Card newCard = (Card){rect};
+	Card newCard = (Card){rect,i};
 	cards[i] = newCard;
     }
 
@@ -118,7 +131,6 @@ void main(void)
 	{
 	    selectedCard->rect.x = mousePosition.x - CARD_HALF_WIDTH;
 	    selectedCard->rect.y = mousePosition.y - CARD_HALF_HEIGHT;
-	    TraceLog(LOG_DEBUG, "Moving selected card (%f, %f)", selectedCard->rect.x, selectedCard->rect.y);
 	}
 
 	BeginDrawing();
