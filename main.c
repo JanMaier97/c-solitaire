@@ -14,9 +14,44 @@
 typedef struct Card {
     Rectangle rect;
     int value;
+    bool isHighlighted;
     struct Card* prev;
     struct Card* next;
 } Card;
+
+Card* GetSelectedCard(Card cards[CARD_COUNT]) 
+{
+    // find any card that is under the cursor
+    Vector2 mousePos = GetMousePosition();
+    Card* firstCollision = NULL;
+    for (int i = 0; i < CARD_COUNT; i++)
+    {
+	if (CheckCollisionPointRec(mousePos, cards[i].rect))
+	{
+	    firstCollision = &cards[i];
+	    break;
+	}
+    }
+
+    // find the top most card under the cursor
+    Card* currentCard = firstCollision;
+    while (true)
+    {
+	if (currentCard->next == NULL)
+	{
+	    return currentCard;
+	}
+
+	if (CheckCollisionPointRec(mousePos, currentCard->next->rect)) 
+	{
+	    currentCard = currentCard->next;
+	}
+	else 
+	{
+	    return currentCard;
+	}
+    }
+}
 
 void DrawCards(Card* head) 
 {
@@ -29,7 +64,13 @@ void DrawCards(Card* head)
     while (currentCard != NULL) 
     {
 	Rectangle currentRect = currentCard->rect;
-	DrawRectangleRec(currentRect, BLACK);
+	Color borderColor = BLACK;
+	if (currentCard->isHighlighted)
+	{
+	    borderColor = BLUE;
+	}
+
+	DrawRectangleRec(currentRect, borderColor);
 	DrawRectangle(
 	    currentRect.x + CARD_BORDER_WIDTH,
 	    currentRect.y + CARD_BORDER_WIDTH,
@@ -79,7 +120,16 @@ void AppendCard(Card* card, Card* cardToAppend)
     assert(lastCard != NULL);
 
     lastCard->next = cardToAppend;
+
+    // Delte child reference of parent 
+    if (cardToAppend->prev != NULL)
+    {
+	cardToAppend->prev->next = NULL;
+    }
+
     cardToAppend->prev = lastCard;
+
+    // LogTrace(LOG_DEBUG, TextFormat("Chidl value: %d"));
 }
 
 // Resets the cards position to the parent card
@@ -113,14 +163,13 @@ void ResetCardPosition(Card* card)
 void main(void)
 {
     SetTraceLogLevel(LOG_DEBUG);
-    Card* selectedCard = NULL;
 
     TraceLog(LOG_DEBUG, "Initialize cards");
     Card cards[CARD_COUNT] = {0};
     for (int i = 0; i < CARD_COUNT; i++) 
     {
 	Rectangle rect = (Rectangle){100 + CARD_WIDTH*i + 50*i, 100, CARD_WIDTH, CARD_HEIGHT};
-	Card newCard = (Card){rect, i, NULL, NULL};
+	Card newCard = (Card){rect, i, false, NULL, NULL};
 	cards[i] = newCard;
     }
 
@@ -139,28 +188,43 @@ void main(void)
 
     InitWindow(800, 600, "Solitair");
     SetTargetFPS(60);
+
+    Card* selectedCard = NULL;
+    Card* dropTargetCard = NULL;
     while(!WindowShouldClose())
     {
 	Vector2 mousePosition = GetMousePosition();
 	if (IsMouseButtonPressed(0))
 	{
-	    for (int i = 0; i < CARD_COUNT; i++)
+	    selectedCard = GetSelectedCard(cards);
+
+	    if (selectedCard != NULL)
 	    {
-		if (CheckCollisionPointRec(mousePosition, cards[i].rect)) {
-		    selectedCard = &cards[i];
-		    TraceLog(LOG_DEBUG, "Selected card at index %d", i);
-		}
+		TraceLog(LOG_DEBUG, "Selected card %d", selectedCard->value);
+	    }
+	    else 
+	    {
+		TraceLog(LOG_DEBUG, "No card under cursor");
 	    }
 	}
 	
 	if (IsMouseButtonReleased(0)) {
 	    TraceLog(LOG_DEBUG, "Dropping selected card");
+
+	    if (dropTargetCard != NULL)
+	    {
+		AppendCard(dropTargetCard, selectedCard);
+		dropTargetCard->isHighlighted = false;
+		dropTargetCard = NULL;
+	    }
 	    ResetCardPosition(selectedCard);
+
 	    selectedCard = NULL;
 	}
 
 	if (selectedCard != NULL) 
 	{
+	    // move card with mouse
 	    Vector2 delta = GetMouseDelta();
 	    Card* currentCard = selectedCard;
 	    while (currentCard != NULL)
@@ -168,6 +232,32 @@ void main(void)
 		currentCard->rect.x += delta.x;
 		currentCard->rect.y += delta.y;
 		currentCard = currentCard->next;
+	    }
+
+	    // detect collisions with cards
+	    for (int i = 0; i < CARD_STACK_COUNT; i++)
+	    {
+		Card* topCard = FindLast(cardStacks[i]);
+		if (topCard == selectedCard)
+		{
+		    continue;
+		}
+
+		if (CheckCollisionPointRec(mousePosition, topCard->rect)) 
+		{
+		    topCard->isHighlighted = true;
+		    dropTargetCard = topCard;
+		}
+		else 
+		{
+		    topCard->isHighlighted = false;
+		    
+		    // reset card for drag and drop 
+		    if (topCard == dropTargetCard)
+		    {
+			dropTargetCard = NULL;
+		    }
+		}
 	    }
 	}
 
