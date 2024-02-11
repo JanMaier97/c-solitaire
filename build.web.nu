@@ -1,4 +1,4 @@
-(emcc -o solitaire.html 
+(emcc -o docs/index.html 
     main.c -Os -Wall -std=c99 -D_DEFAULT_SOURCE -Wno-missing-braces -Wunused-result
     C:/raylib/raylib/src/lib/web/libraylib.a 
     -I. -I C:/raylib/raylib/src 
