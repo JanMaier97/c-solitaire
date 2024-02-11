@@ -14,6 +14,7 @@
 typedef struct Card {
     Rectangle rect;
     int value;
+    struct Card* prev;
     struct Card* next;
 } Card;
 
@@ -74,12 +75,39 @@ void AppendCard(Card* card, Card* cardToAppend)
     assert(cardToAppend != NULL);
 
     Card* lastCard = FindLast(card);
+
     assert(lastCard != NULL);
 
-    cardToAppend->rect.y = lastCard->rect.y + CARD_STACK_OFFSET;
-    cardToAppend->rect.x = lastCard->rect.x;
-
     lastCard->next = cardToAppend;
+    cardToAppend->prev = lastCard;
+}
+
+// Resets the cards position to the parent card
+void ResetCardPosition(Card* card)
+{
+    if (card == NULL)
+    {
+	return;
+    }
+
+    TraceLog(LOG_DEBUG, "Resetting card position");
+    Card* currentCard = card;
+
+    // if given card has no parent, use it as the parent instead
+    if (currentCard->prev == NULL) 
+    {
+	TraceLog(LOG_DEBUG, "Using current card as parent");
+	currentCard = card->next;
+    }
+
+    while(currentCard != NULL)
+    {
+	TraceLog(LOG_DEBUG, "Setting position for card %d", currentCard->value);
+	currentCard->rect.y = currentCard->prev->rect.y + CARD_STACK_OFFSET;
+	currentCard->rect.x = currentCard->prev->rect.x;
+
+	currentCard = currentCard->next;
+    }
 }
 
 void main(void)
@@ -87,24 +115,27 @@ void main(void)
     SetTraceLogLevel(LOG_DEBUG);
     Card* selectedCard = NULL;
 
+    TraceLog(LOG_DEBUG, "Initialize cards");
     Card cards[CARD_COUNT] = {0};
-    Card* cardStacks[CARD_STACK_COUNT] = {0};
     for (int i = 0; i < CARD_COUNT; i++) 
     {
 	Rectangle rect = (Rectangle){100 + CARD_WIDTH*i + 50*i, 100, CARD_WIDTH, CARD_HEIGHT};
-	Card newCard = (Card){rect,i};
+	Card newCard = (Card){rect, i, NULL, NULL};
 	cards[i] = newCard;
     }
 
-    printf("initialized cards");
+    TraceLog(LOG_DEBUG, "Initialize card stacks");
+    Card* cardStacks[CARD_STACK_COUNT] = {0};
 
     AppendCard(&cards[0], &cards[1]);
     AppendCard(&cards[0], &cards[2]);
-
     AppendCard(&cards[3], &cards[4]);
 
     cardStacks[0] = &cards[0];
     cardStacks[1] = &cards[3];
+
+    ResetCardPosition(cardStacks[0]);
+    ResetCardPosition(cardStacks[1]);
 
     InitWindow(800, 600, "Solitair");
     SetTargetFPS(60);
@@ -124,6 +155,7 @@ void main(void)
 	
 	if (IsMouseButtonReleased(0)) {
 	    TraceLog(LOG_DEBUG, "Dropping selected card");
+	    ResetCardPosition(selectedCard);
 	    selectedCard = NULL;
 	}
 
@@ -141,10 +173,15 @@ void main(void)
 
 	BeginDrawing();
 	ClearBackground(RED);
+
+	// Draw all cards
         for (int i = 0; i < CARD_STACK_COUNT; i++)
 	{
 	    DrawCards(cardStacks[i]);
 	}
+
+	// Draw selected card stack above all else
+	DrawCards(selectedCard);
 
 	EndDrawing();
     }
