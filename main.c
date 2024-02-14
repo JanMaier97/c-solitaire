@@ -9,7 +9,7 @@
 #define CARD_HALF_HEIGHT  CARD_HEIGHT/2
 #define CARD_HALF_WIDTH  CARD_WIDTH/2
 #define CARD_COUNT 5
-#define CARD_STACK_COUNT 2
+#define CARD_STACK_COUNT 3
 
 //#define PLATFORM_WEB
 
@@ -17,7 +17,13 @@
     #include <emscripten/emscripten.h>
 #endif
 
+typedef enum CardType {
+    HEAD_CARD,
+    NORMAL_CARD
+} CardType;
+
 typedef struct Card {
+    CardType type;
     Rectangle rect;
     int value;
     bool isHighlighted;
@@ -37,7 +43,7 @@ void ResetCardPosition(Card* card);
 void DrawCards(Card* head);
 
 Card cards[CARD_COUNT] = {0};
-Card* cardStacks[CARD_STACK_COUNT] = {0};
+Card cardStacks[CARD_STACK_COUNT] = {0};
 Card* selectedCard = NULL;
 Card* dropTargetCard = NULL;
 
@@ -116,30 +122,46 @@ void DrawCards(Card* head)
     {
 	Rectangle currentRect = currentCard->rect;
 	Color borderColor = BLACK;
+	Color fillColor = WHITE;
+
+	// select fill color
+	if (currentCard->type == HEAD_CARD)
+	{
+	    fillColor = MAROON;
+	    borderColor = MAROON;
+	}
+
+	// select border color 
 	if (currentCard->isHighlighted)
 	{
 	    borderColor = BLUE;
 	}
 
+	// draw border and inner rect
 	DrawRectangleRec(currentRect, borderColor);
 	DrawRectangle(
 	    currentRect.x + CARD_BORDER_WIDTH,
 	    currentRect.y + CARD_BORDER_WIDTH,
 	    currentRect.width - CARD_BORDER_WIDTH*2,
 	    currentRect.height - CARD_BORDER_WIDTH*2,
-	    WHITE);
-
-	const char* valueText = TextFormat("%d", currentCard->value);
-	int fontSize = 12;
-	int yOffset = 12;
-	int textWidth = MeasureText(valueText, fontSize);
-	DrawText(
-	    valueText,
-	    currentRect.x + CARD_HALF_WIDTH - textWidth/2,
-	    currentRect.y + yOffset,
-	    fontSize,
-	    BLACK
+	    fillColor
 	);
+
+	// display value for normal cards 
+	if (currentCard->type != HEAD_CARD)
+	{
+	    const char* valueText = TextFormat("%d", currentCard->value);
+	    int fontSize = 12;
+	    int yOffset = 12;
+	    int textWidth = MeasureText(valueText, fontSize);
+	    DrawText(
+		valueText,
+		currentRect.x + CARD_HALF_WIDTH - textWidth/2,
+		currentRect.y + yOffset,
+		fontSize,
+		BLACK
+	    );
+	}
 
 	currentCard = currentCard->next;
     }
@@ -179,8 +201,6 @@ void AppendCard(Card* card, Card* cardToAppend)
     }
 
     cardToAppend->prev = lastCard;
-
-    // LogTrace(LOG_DEBUG, TextFormat("Chidl value: %d"));
 }
 
 // Resets the cards position to the parent card
@@ -201,6 +221,15 @@ void ResetCardPosition(Card* card)
 	currentCard = card->next;
     }
 
+    // assuming head cards can only exist at the head
+    // manually set the postion of the first child and advance once
+    if (currentCard->prev->type == HEAD_CARD)
+    {
+	currentCard->rect.y = currentCard->prev->rect.y;
+	currentCard->rect.x = currentCard->prev->rect.x;
+	currentCard = currentCard->next;
+    }
+
     while(currentCard != NULL)
     {
 	TraceLog(LOG_DEBUG, "Setting position for card %d", currentCard->value);
@@ -216,22 +245,30 @@ void InitGame(void)
     TraceLog(LOG_DEBUG, "Initialize cards");
     for (int i = 0; i < CARD_COUNT; i++) 
     {
-	Rectangle rect = (Rectangle){100 + CARD_WIDTH*i + 50*i, 100, CARD_WIDTH, CARD_HEIGHT};
-	Card newCard = (Card){rect, i, false, NULL, NULL};
+	Rectangle rect = (Rectangle){0, 0, CARD_WIDTH, CARD_HEIGHT};
+	Card newCard = (Card){NORMAL_CARD, rect, i+1, false, NULL, NULL};
 	cards[i] = newCard;
     }
 
     TraceLog(LOG_DEBUG, "Initialize card stacks");
+    for (int i = 0; i < CARD_STACK_COUNT; i++)
+    {
+	Rectangle rect = (Rectangle){100 + CARD_WIDTH*i + 50*i, 100, CARD_WIDTH, CARD_HEIGHT};
+	Card newCard = (Card){HEAD_CARD, rect, 0, false, NULL, NULL};
+	cardStacks[i] = newCard;
+    }
 
+    TraceLog(LOG_DEBUG, "Append cards");
     AppendCard(&cards[0], &cards[1]);
     AppendCard(&cards[0], &cards[2]);
     AppendCard(&cards[3], &cards[4]);
 
-    cardStacks[0] = &cards[0];
-    cardStacks[1] = &cards[3];
+    TraceLog(LOG_DEBUG, "Append to stack heads");
+    AppendCard(&cardStacks[0], &cards[0]);
+    AppendCard(&cardStacks[1], &cards[3]);
 
-    ResetCardPosition(cardStacks[0]);
-    ResetCardPosition(cardStacks[1]);
+    ResetCardPosition(&cardStacks[0]);
+    ResetCardPosition(&cardStacks[1]);
 
     for (int i = 0; i < CARD_COUNT; i++)
     {
@@ -286,7 +323,7 @@ void UpdateGame(void)
 	// detect collisions with cards
 	for (int i = 0; i < CARD_STACK_COUNT; i++)
 	{
-	    Card* topCard = FindLast(cardStacks[i]);
+	    Card* topCard = FindLast(&cardStacks[i]);
 	    if (topCard == selectedCard)
 	    {
 		continue;
@@ -319,7 +356,7 @@ void DrawGame(void)
     // Draw all cards
     for (int i = 0; i < CARD_STACK_COUNT; i++)
     {
-	DrawCards(cardStacks[i]);
+	DrawCards(&cardStacks[i]);
     }
 
     // Draw selected card stack above all else
