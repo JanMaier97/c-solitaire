@@ -1,3 +1,5 @@
+cp -r ./static/shell_files ./docs
+
 (emcc -o docs/index.html 
     main.c -Os -Wall -std=c99 -D_DEFAULT_SOURCE -Wno-missing-braces -Wunused-result
     C:/raylib/raylib/src/lib/web/libraylib.a 
@@ -6,5 +8,5 @@
     -s USE_GLFW=3 
     -s ASYNCIFY 
     -s ASSERTIONS  
-    --shell-file ./shell.html
+    --shell-file ./static/shell.html
     -DPLATFORM_WEB)
