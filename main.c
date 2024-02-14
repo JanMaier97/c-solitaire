@@ -79,6 +79,11 @@ Card* GetSelectedCard(Card cards[CARD_COUNT])
 	}
     }
 
+    if (firstCollision == NULL)
+    {
+	return NULL;
+    }
+
     // find the top most card under the cursor
     Card* currentCard = firstCollision;
     while (true)
