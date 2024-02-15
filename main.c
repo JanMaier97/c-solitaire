@@ -8,14 +8,17 @@
 #define CARD_STACK_OFFSET 30 
 #define CARD_HALF_HEIGHT  CARD_HEIGHT/2
 #define CARD_HALF_WIDTH  CARD_WIDTH/2
-#define CARD_COUNT 5
-#define CARD_STACK_COUNT 3
+#define CARD_COUNT 13
+#define CARD_STACK_COUNT 7
+#define TARGET_STACK_COUNT 4
 
 //#define PLATFORM_WEB
 
 #if defined(PLATFORM_WEB)
     #include <emscripten/emscripten.h>
 #endif
+
+const int CARD_SPACING = 25;
 
 typedef enum CardType {
     HEAD_CARD,
@@ -44,6 +47,7 @@ void DrawCards(Card* head);
 
 Card cards[CARD_COUNT] = {0};
 Card cardStacks[CARD_STACK_COUNT] = {0};
+Card finalCardStacks[TARGET_STACK_COUNT] = {0}; 
 Card* selectedCard = NULL;
 Card* dropTargetCard = NULL;
 
@@ -253,9 +257,21 @@ void InitGame(void)
     TraceLog(LOG_DEBUG, "Initialize card stacks");
     for (int i = 0; i < CARD_STACK_COUNT; i++)
     {
-	Rectangle rect = (Rectangle){100 + CARD_WIDTH*i + 50*i, 100, CARD_WIDTH, CARD_HEIGHT};
+	int xOffset = CARD_SPACING;
+	int yOffset = CARD_HEIGHT + CARD_SPACING * 2;
+	Rectangle rect = (Rectangle){xOffset + (CARD_WIDTH + CARD_SPACING) * i, yOffset, CARD_WIDTH, CARD_HEIGHT};
 	Card newCard = (Card){HEAD_CARD, rect, 0, false, NULL, NULL};
 	cardStacks[i] = newCard;
+    }
+
+    TraceLog(LOG_DEBUG, "Initialize target stacks");
+    for (int i = 0; i < TARGET_STACK_COUNT; i++) 
+    {
+	int xOffset = (CARD_WIDTH + CARD_SPACING) * (CARD_STACK_COUNT - TARGET_STACK_COUNT) + CARD_SPACING;
+	int yOffset = CARD_SPACING;
+	Rectangle rect = (Rectangle){xOffset + (CARD_WIDTH + CARD_SPACING) * i, yOffset, CARD_WIDTH, CARD_HEIGHT};
+	Card newCard = (Card){HEAD_CARD, rect, 0, false, NULL, NULL};
+	finalCardStacks[i] = newCard;
     }
 
     TraceLog(LOG_DEBUG, "Append cards");
@@ -357,6 +373,11 @@ void DrawGame(void)
     for (int i = 0; i < CARD_STACK_COUNT; i++)
     {
 	DrawCards(&cardStacks[i]);
+    }
+
+    for (int i = 0; i < TARGET_STACK_COUNT; i++)
+    {
+	DrawCards(&finalCardStacks[i]);
     }
 
     // Draw selected card stack above all else
