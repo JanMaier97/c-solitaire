@@ -51,6 +51,16 @@ void DrawCards(Card* head);
 
 void SuffleCards(Card cards[CARD_COUNT]);
 
+bool CanDropCard(Card* targetCard, Card* cardToDrop)
+{
+    if (targetCard->value == cardToDrop->value+1)
+    {
+	return true;
+    }
+
+    return false;
+}
+
 Card cards[CARD_COUNT] = {0};
 Card cardStacks[CARD_STACK_COUNT] = {0};
 Card finalCardStacks[TARGET_STACK_COUNT] = {0}; 
@@ -60,7 +70,6 @@ Card* dropTargetCard = NULL;
 int main(void)
 {
     SetTraceLogLevel(LOG_DEBUG);
-
 
     InitWindow(800, 600, "Solitaire");
     InitGame();
@@ -362,6 +371,11 @@ void UpdateGame(void)
 
 	    if (CheckCollisionPointRec(mousePosition, topCard->rect)) 
 	    {
+		if (!CanDropCard(topCard, selectedCard)) 
+		{
+		    break;
+		}
+
 		topCard->isHighlighted = true;
 		dropTargetCard = topCard;
 	    }
