@@ -29,11 +29,17 @@ typedef enum CardType {
     NORMAL_CARD
 } CardType;
 
+typedef enum CardHighlight {
+    HL_NONE,
+    HL_DROP_OK,
+    HL_DROP_INVALID,
+} CardHighlight;
+
 typedef struct Card {
     CardType type;
     Rectangle rect;
     int value;
-    bool isHighlighted;
+    CardHighlight highlight;
     struct Card* prev;
     struct Card* next;
 } Card;
@@ -151,9 +157,17 @@ void DrawCards(Card* head)
 	}
 
 	// select border color 
-	if (currentCard->isHighlighted)
+	switch (currentCard->highlight)
 	{
-	    borderColor = BLUE;
+	    case HL_DROP_OK:
+		borderColor = BLUE;
+		break;
+	    case HL_DROP_INVALID:
+		borderColor = RED;
+		break;
+	    case HL_NONE:
+		borderColor = BLACK;
+		break;
 	}
 
 	// draw border and inner rect
@@ -271,7 +285,7 @@ void InitGame(void)
     {
 	Rectangle rect = (Rectangle){0, 0, CARD_WIDTH, CARD_HEIGHT};
 	int value = (i % MAX_CARD_VALUE) + 1;
-	Card newCard = (Card){NORMAL_CARD, rect, value, false, NULL, NULL};
+	Card newCard = (Card){NORMAL_CARD, rect, value, HL_NONE, NULL, NULL};
 	cards[i] = newCard;
     }
 
@@ -340,10 +354,15 @@ void UpdateGame(void)
 	if (dropTargetCard != NULL)
 	{
 	    AppendCard(dropTargetCard, selectedCard);
-	    dropTargetCard->isHighlighted = false;
 	    dropTargetCard = NULL;
 	}
+
 	ResetCardPosition(selectedCard);
+
+	for (int i=0; i < CARD_COUNT; i++)
+	{
+	    cards[i].highlight = HL_NONE;
+	}
 
 	selectedCard = NULL;
     }
@@ -373,15 +392,16 @@ void UpdateGame(void)
 	    {
 		if (!CanDropCard(topCard, selectedCard)) 
 		{
+		    topCard->highlight = HL_DROP_INVALID;
 		    break;
 		}
 
-		topCard->isHighlighted = true;
+		topCard->highlight = HL_DROP_OK;
 		dropTargetCard = topCard;
 	    }
 	    else 
 	    {
-		topCard->isHighlighted = false;
+		topCard->highlight = HL_NONE;
 
 		// reset card for drag and drop 
 		if (topCard == dropTargetCard)
