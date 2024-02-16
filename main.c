@@ -416,7 +416,7 @@ void UpdateGame(void)
 void DrawGame(void)
 {
     BeginDrawing();
-    ClearBackground(RED);
+    ClearBackground(DARKGREEN);
 
     // Draw all cards
     for (int i = 0; i < CARD_STACK_COUNT; i++)
