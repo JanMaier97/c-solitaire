@@ -361,6 +361,11 @@ void UpdateGame(void)
 	if (selectedCard != NULL)
 	{
 	    TraceLog(LOG_DEBUG, "Selected card %d", selectedCard->value);
+	    if (selectedCard->side == CS_BACK)
+	    {
+		TraceLog(LOG_DEBUG, "Selected card has not been exposed yet.");
+		selectedCard = NULL;
+	    }
 	}
 	else 
 	{
