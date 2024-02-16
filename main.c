@@ -373,13 +373,22 @@ void UpdateGame(void)
 	}
     }
 
+    // handle dropping of cards
     if (IsMouseButtonReleased(0)) {
 	TraceLog(LOG_DEBUG, "Dropping selected card");
 
 	if (dropTargetCard != NULL)
 	{
+	    Card* cardToExpose = selectedCard->prev;
+
 	    AppendCard(dropTargetCard, selectedCard);
 	    dropTargetCard = NULL;
+
+	    if (cardToExpose != NULL)
+	    {
+		cardToExpose->side = CS_FRONT;
+	    }
+
 	}
 
 	ResetCardPosition(selectedCard);
