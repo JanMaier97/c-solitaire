@@ -29,6 +29,12 @@ typedef enum CardType {
     NORMAL_CARD
 } CardType;
 
+typedef enum CardSide {
+    CS_NONE,
+    CS_FRONT,
+    CS_BACK
+} CardSide;
+
 typedef enum CardHighlight {
     HL_NONE,
     HL_DROP_OK,
@@ -40,6 +46,7 @@ typedef struct Card {
     Rectangle rect;
     int value;
     CardHighlight highlight;
+    CardSide side;
     struct Card* prev;
     struct Card* next;
 } Card;
@@ -147,7 +154,12 @@ void DrawCards(Card* head)
     {
 	Rectangle currentRect = currentCard->rect;
 	Color borderColor = BLACK;
-	Color fillColor = WHITE;
+	Color fillColor = MAROON;
+
+	if (currentCard->side == CS_FRONT) 
+	{
+	    fillColor = WHITE;
+	}
 
 	// select fill color
 	if (currentCard->type == HEAD_CARD)
@@ -182,7 +194,9 @@ void DrawCards(Card* head)
 	);
 
 	// display value for normal cards 
-	if (currentCard->type != HEAD_CARD)
+	// and for front cards
+	if (currentCard->type != HEAD_CARD &&
+	    currentCard->side == CS_FRONT)
 	{
 	    const char* valueText = TextFormat("%d", currentCard->value);
 	    int fontSize = 12;
@@ -284,9 +298,9 @@ void InitGame(void)
     TraceLog(LOG_DEBUG, "Initialize cards");
     for (int i = 0; i < CARD_COUNT; i++) 
     {
-	Rectangle rect = (Rectangle){0, 0, CARD_WIDTH, CARD_HEIGHT};
+	Rectangle rect = (Rectangle){CARD_SPACING, CARD_SPACING, CARD_WIDTH, CARD_HEIGHT};
 	int value = (i % MAX_CARD_VALUE) + 1;
-	Card newCard = (Card){NORMAL_CARD, rect, value, HL_NONE, NULL, NULL};
+	Card newCard = (Card){NORMAL_CARD, rect, value, HL_NONE, CS_BACK, NULL, NULL};
 	cards[i] = newCard;
     }
 
@@ -296,7 +310,7 @@ void InitGame(void)
 	int xOffset = CARD_SPACING;
 	int yOffset = CARD_HEIGHT + CARD_SPACING * 2;
 	Rectangle rect = (Rectangle){xOffset + (CARD_WIDTH + CARD_SPACING) * i, yOffset, CARD_WIDTH, CARD_HEIGHT};
-	Card newCard = (Card){HEAD_CARD, rect, 0, false, NULL, NULL};
+	Card newCard = (Card){HEAD_CARD, rect, 0, false, CS_NONE, NULL, NULL};
 	cardStacks[i] = newCard;
     }
 
@@ -306,9 +320,10 @@ void InitGame(void)
 	int xOffset = (CARD_WIDTH + CARD_SPACING) * (CARD_STACK_COUNT - TARGET_STACK_COUNT) + CARD_SPACING;
 	int yOffset = CARD_SPACING;
 	Rectangle rect = (Rectangle){xOffset + (CARD_WIDTH + CARD_SPACING) * i, yOffset, CARD_WIDTH, CARD_HEIGHT};
-	Card newCard = (Card){HEAD_CARD, rect, 0, false, NULL, NULL};
+	Card newCard = (Card){HEAD_CARD, rect, 0, false, CS_NONE, NULL, NULL};
 	finalCardStacks[i] = newCard;
     }
+
 
     TraceLog(LOG_DEBUG, "Shuffle cards");
     SuffleCards(cards);
@@ -323,6 +338,10 @@ void InitGame(void)
 	    AppendCard(&cardStacks[stackIdx],card); 
 	    lastCardIdx += 1;
 	}
+
+	Card* lastCard = FindLast(&cardStacks[stackIdx]);
+	assert(lastCard != NULL);
+	lastCard->side = CS_FRONT;
     }
 
     for (int i = 0; i < CARD_STACK_COUNT; i++)
