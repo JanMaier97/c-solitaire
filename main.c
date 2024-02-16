@@ -1,5 +1,8 @@
 #include <stdio.h>
 #include <assert.h>
+#include <stdlib.h>
+#include <time.h>
+
 #include "raylib.h"
 
 #define CARD_HEIGHT 120 
@@ -8,7 +11,7 @@
 #define CARD_STACK_OFFSET 30 
 #define CARD_HALF_HEIGHT  CARD_HEIGHT/2
 #define CARD_HALF_WIDTH  CARD_WIDTH/2
-#define CARD_COUNT 13
+#define CARD_COUNT 52
 #define CARD_STACK_COUNT 7
 #define TARGET_STACK_COUNT 4
 
@@ -19,6 +22,7 @@
 #endif
 
 const int CARD_SPACING = 25;
+const int MAX_CARD_VALUE = 13;
 
 typedef enum CardType {
     HEAD_CARD,
@@ -44,6 +48,8 @@ Card* FindLast(Card *card);
 void AppendCard(Card* card, Card* cardToAppend);
 void ResetCardPosition(Card* card);
 void DrawCards(Card* head);
+
+void SuffleCards(Card cards[CARD_COUNT]);
 
 Card cards[CARD_COUNT] = {0};
 Card cardStacks[CARD_STACK_COUNT] = {0};
@@ -225,6 +231,11 @@ void ResetCardPosition(Card* card)
 	currentCard = card->next;
     }
 
+    if (currentCard == NULL)
+    {
+	return;
+    }
+
     // assuming head cards can only exist at the head
     // manually set the postion of the first child and advance once
     if (currentCard->prev->type == HEAD_CARD)
@@ -250,7 +261,8 @@ void InitGame(void)
     for (int i = 0; i < CARD_COUNT; i++) 
     {
 	Rectangle rect = (Rectangle){0, 0, CARD_WIDTH, CARD_HEIGHT};
-	Card newCard = (Card){NORMAL_CARD, rect, i+1, false, NULL, NULL};
+	int value = (i % MAX_CARD_VALUE) + 1;
+	Card newCard = (Card){NORMAL_CARD, rect, value, false, NULL, NULL};
 	cards[i] = newCard;
     }
 
@@ -274,21 +286,24 @@ void InitGame(void)
 	finalCardStacks[i] = newCard;
     }
 
+    TraceLog(LOG_DEBUG, "Shuffle cards");
+    SuffleCards(cards);
+
     TraceLog(LOG_DEBUG, "Append cards");
-    AppendCard(&cards[0], &cards[1]);
-    AppendCard(&cards[0], &cards[2]);
-    AppendCard(&cards[3], &cards[4]);
-
-    TraceLog(LOG_DEBUG, "Append to stack heads");
-    AppendCard(&cardStacks[0], &cards[0]);
-    AppendCard(&cardStacks[1], &cards[3]);
-
-    ResetCardPosition(&cardStacks[0]);
-    ResetCardPosition(&cardStacks[1]);
-
-    for (int i = 0; i < CARD_COUNT; i++)
+    int lastCardIdx = 0;
+    for (int stackIdx = 0; stackIdx < CARD_STACK_COUNT; stackIdx++)
     {
-	TraceLog(LOG_DEBUG, "Card %d position: (%f, %f)", cards[i].value, cards[i].rect.x, cards[i].rect.y);
+	for (int i = 0; i < stackIdx+1; i++)
+	{
+	    Card* card = &cards[lastCardIdx]; 
+	    AppendCard(&cardStacks[stackIdx],card); 
+	    lastCardIdx += 1;
+	}
+    }
+
+    for (int i = 0; i < CARD_STACK_COUNT; i++)
+    {
+	ResetCardPosition(&cardStacks[i]);
     }
 }
 
@@ -390,4 +405,23 @@ void UpdateDrawFrame(void)
 {
     UpdateGame();
     DrawGame();
+}
+
+void SuffleCards(Card cards[CARD_COUNT])
+{
+    // Fisher-Yates shuffle
+    // note there is a raylib specific function `LoadRandomSequence`
+    // it is not used due to a bug: https://github.com/raysan5/raylib/issues/3612
+
+    srand(time(NULL));
+
+    for (int i = CARD_COUNT-1; i > 0; i--)
+    {
+	// generate number in [0;i]
+	int indexToSwap = rand() % (i+1);
+
+	Card temp = cards[i];
+	cards[i] = cards[indexToSwap];
+	cards[indexToSwap] = temp;
+    }
 }
