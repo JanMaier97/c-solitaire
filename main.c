@@ -152,8 +152,9 @@ void DrawCards(Card* head)
 	// select fill color
 	if (currentCard->type == HEAD_CARD)
 	{
-	    fillColor = MAROON;
-	    borderColor = MAROON;
+	    Color darkDarkGreen = (Color){ 0, 97, 24, 255 };
+	    fillColor = darkDarkGreen;
+	    borderColor = darkDarkGreen;
 	}
 
 	// select border color 
