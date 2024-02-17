@@ -58,6 +58,7 @@ void UpdateDrawFrame(void);
 
 Card* GetSelectedCard(Card cards[CARD_COUNT]);
 Card* FindLast(Card *card);
+Card* FindHead(Card *card);
 void AppendCard(Card* card, Card* cardToAppend);
 void ResetCardPosition(Card* card);
 void DrawCards(Card* head);
@@ -348,7 +349,7 @@ void InitGame(void)
 
     TraceLog(LOG_DEBUG, "Setup remaining cards");
     Rectangle rect = (Rectangle){CARD_SPACING, CARD_SPACING, CARD_WIDTH, CARD_HEIGHT};
-    remainderHead = (Card){HEAD_CARD, rect, 0, false, CS_NONE, NULL, NULL};
+    remainderHead = (Card){HEAD_CARD, rect, 42, false, CS_NONE, NULL, NULL};
 
     rect = (Rectangle){CARD_SPACING*2+CARD_WIDTH, CARD_SPACING, CARD_WIDTH, CARD_HEIGHT};
     openRemainderHead = (Card){HEAD_CARD, rect, 0, false, CS_NONE, NULL, NULL};
@@ -390,6 +391,18 @@ void UpdateGame(void)
     // handle dropping of cards
     if (IsMouseButtonReleased(0)) {
 	TraceLog(LOG_DEBUG, "Dropping selected card");
+
+	// handle clicking on remaining card stack
+	if (selectedCard == NULL)
+	{
+	    Card* cardUnderCoursor = GetSelectedCard(cards);
+	    if (cardUnderCoursor != NULL && FindHead(cardUnderCoursor) == &remainderHead)
+	    {
+		AppendCard(&openRemainderHead, cardUnderCoursor);
+		cardUnderCoursor->side = CS_FRONT;
+		ResetCardPosition(cardUnderCoursor);
+	    }
+	}
 
 	if (dropTargetCard != NULL)
 	{
@@ -510,4 +523,26 @@ void SuffleCards(Card cards[CARD_COUNT])
 	cards[i] = cards[indexToSwap];
 	cards[indexToSwap] = temp;
     }
+}
+
+Card* FindHead(Card* card)
+{
+    if (card == NULL)
+    {
+	return NULL;
+    }
+
+    Card* currentCard = card;
+    while (currentCard != NULL)
+    {
+	if (currentCard->type == HEAD_CARD)
+	{
+	    return currentCard;
+	}
+
+	currentCard = currentCard->prev;
+    }
+
+    // should not be possible
+    assert(false);
 }
