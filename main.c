@@ -76,6 +76,8 @@ bool CanDropCard(Card* targetCard, Card* cardToDrop)
 
 Card cards[CARD_COUNT] = {0};
 Card cardStacks[CARD_STACK_COUNT] = {0};
+Card remainderHead = {0};
+Card openRemainderHead = {0};
 Card finalCardStacks[TARGET_STACK_COUNT] = {0}; 
 Card* selectedCard = NULL;
 Card* dropTargetCard = NULL;
@@ -344,6 +346,18 @@ void InitGame(void)
 	lastCard->side = CS_FRONT;
     }
 
+    TraceLog(LOG_DEBUG, "Setup remaining cards");
+    Rectangle rect = (Rectangle){CARD_SPACING, CARD_SPACING, CARD_WIDTH, CARD_HEIGHT};
+    remainderHead = (Card){HEAD_CARD, rect, 0, false, CS_NONE, NULL, NULL};
+
+    rect = (Rectangle){CARD_SPACING*2+CARD_WIDTH, CARD_SPACING, CARD_WIDTH, CARD_HEIGHT};
+    openRemainderHead = (Card){HEAD_CARD, rect, 0, false, CS_NONE, NULL, NULL};
+
+    for(int i = lastCardIdx; i < CARD_COUNT; i++)
+    {
+	AppendCard(&remainderHead, &cards[i]);
+    }
+
     for (int i = 0; i < CARD_STACK_COUNT; i++)
     {
 	ResetCardPosition(&cardStacks[i]);
@@ -462,6 +476,10 @@ void DrawGame(void)
     {
 	DrawCards(&finalCardStacks[i]);
     }
+
+    // Draw remainder cards
+    DrawCards(&remainderHead);
+    DrawCards(&openRemainderHead);
 
     // Draw selected card stack above all else
     DrawCards(selectedCard);
