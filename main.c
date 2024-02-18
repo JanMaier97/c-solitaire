@@ -66,20 +66,9 @@ void DrawCards(Card* head);
 
 void SuffleCards(Card cards[CARD_COUNT]);
 
-bool CanDropCard(Card* targetCard, Card* cardToDrop)
-{
-    if (targetCard->value == cardToDrop->value+1)
-    {
-	return true;
-    }
-
-    if (cardToDrop->value == MAX_CARD_VALUE && targetCard->type == HEAD_CARD)
-    {
-	return true;
-    }
-
-    return false;
-}
+bool CanDropCardOnNormalStack(Card* targetCard, Card* cardToDrop);
+bool CanDropCardOnTargetStack(Card* targetCard, Card* cardToDrop);
+void HandleDropHoveringAndSetDroptarget(Card* stackHead, bool (*canDropPredicate)(Card*, Card*));
 
 Card cards[CARD_COUNT] = {0};
 Card cardStacks[CARD_STACK_COUNT] = {0};
@@ -292,10 +281,26 @@ void ResetCardPosition(Card* card)
 	currentCard = currentCard->next;
     }
 
+    Card* head = FindHead(currentCard);
+    bool headIsFinalStack = false;
+    for (int i = 0; i < TARGET_STACK_COUNT; i++)
+    {
+	if (head == &finalCardStacks[i])
+	{
+	    headIsFinalStack = true;
+	}
+    }
+
+    int offset = CARD_STACK_OFFSET;
+    if (headIsFinalStack)
+    {
+	offset = 0;
+    }
+
     while(currentCard != NULL)
     {
 	TraceLog(LOG_DEBUG, "Setting position for card %d", currentCard->value);
-	currentCard->rect.y = currentCard->prev->rect.y + CARD_STACK_OFFSET;
+	currentCard->rect.y = currentCard->prev->rect.y + offset;
 	currentCard->rect.x = currentCard->prev->rect.x;
 
 	currentCard = currentCard->next;
@@ -435,10 +440,10 @@ void UpdateGame(void)
 	    {
 		cardToExpose->side = CS_FRONT;
 	    }
-
-	}
+	} 
 
 	ResetCardPosition(selectedCard);
+
 
 	for (int i=0; i < CARD_COUNT; i++)
 	{
@@ -448,6 +453,11 @@ void UpdateGame(void)
 	for (int i=0; i < CARD_STACK_COUNT; i++)
 	{
 	    cardStacks[i].highlight = HL_NONE;
+	}
+
+	for (int i=0; i < TARGET_STACK_COUNT; i++)
+	{
+	    finalCardStacks[i].highlight = HL_NONE;
 	}
 
 	selectedCard = NULL;
@@ -468,33 +478,13 @@ void UpdateGame(void)
 	// detect collisions with card stacks
 	for (int i = 0; i < CARD_STACK_COUNT; i++)
 	{
-	    Card* topCard = FindLast(&cardStacks[i]);
-	    if (topCard == selectedCard)
-	    {
-		continue;
-	    }
+	    HandleDropHoveringAndSetDroptarget(&cardStacks[i], CanDropCardOnNormalStack);
+	}
 
-	    if (CheckCollisionPointRec(mousePosition, topCard->rect)) 
-	    {
-		if (!CanDropCard(topCard, selectedCard)) 
-		{
-		    topCard->highlight = HL_DROP_INVALID;
-		    break;
-		}
-
-		topCard->highlight = HL_DROP_OK;
-		dropTargetCard = topCard;
-	    }
-	    else 
-	    {
-		topCard->highlight = HL_NONE;
-
-		// reset card for drag and drop 
-		if (topCard == dropTargetCard)
-		{
-		    dropTargetCard = NULL;
-		}
-	    }
+	// detect collisions with card target stacks
+	for (int i = 0; i < TARGET_STACK_COUNT; i++)
+	{
+	    HandleDropHoveringAndSetDroptarget(&finalCardStacks[i], CanDropCardOnTargetStack);
 	}
     }
 }
@@ -596,5 +586,61 @@ void InsertCardBehind(Card* targetCard, Card* cardToInsert)
     if (oldNextCard != NULL)
     {
 	oldNextCard->prev = lastCardToInsert;
+    }
+}
+
+bool CanDropCardOnNormalStack(Card* targetCard, Card* cardToDrop)
+{
+    if (targetCard->value == cardToDrop->value+1)
+    {
+	return true;
+    }
+
+    if (cardToDrop->value == MAX_CARD_VALUE && targetCard->type == HEAD_CARD)
+    {
+	return true;
+    }
+
+    return false;
+}
+
+bool CanDropCardOnTargetStack(Card* targetCard, Card* cardToDrop)
+{
+    if (targetCard->value+1 == cardToDrop->value)
+    {
+	return true;
+    }
+
+    return false;
+}
+
+void HandleDropHoveringAndSetDroptarget(Card* stackHead, bool (*canDropPredicate)(Card*, Card*)) 
+{
+    Card* topCard = FindLast(stackHead);
+    if (topCard == selectedCard)
+    {
+	return;
+    }
+
+    if (CheckCollisionPointRec(GetMousePosition(), topCard->rect)) 
+    {
+	if (!(*canDropPredicate)(topCard, selectedCard)) 
+	{
+	    topCard->highlight = HL_DROP_INVALID;
+	    return;
+	}
+
+	topCard->highlight = HL_DROP_OK;
+	dropTargetCard = topCard;
+    }
+    else 
+    {
+	topCard->highlight = HL_NONE;
+
+	// reset card for drag and drop 
+	if (topCard == dropTargetCard)
+	{
+	    dropTargetCard = NULL;
+	}
     }
 }
