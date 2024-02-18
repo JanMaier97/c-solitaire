@@ -59,7 +59,8 @@ void UpdateDrawFrame(void);
 Card* GetSelectedCard(Card cards[CARD_COUNT]);
 Card* FindLast(Card *card);
 Card* FindHead(Card *card);
-void AppendCard(Card* card, Card* cardToAppend);
+void AppendCardToEnd(Card* anyStackCard, Card* cardToAppend);
+void InsertCardBehind(Card* anyStackCard, Card* cardToAppend);
 void ResetCardPosition(Card* card);
 void DrawCards(Card* head);
 
@@ -234,7 +235,7 @@ Card* FindLast(Card *card)
     return current;
 }
 
-void AppendCard(Card* card, Card* cardToAppend) 
+void AppendCardToEnd(Card* card, Card* cardToAppend) 
 {
     assert(card != NULL);
     assert(cardToAppend != NULL);
@@ -338,7 +339,7 @@ void InitGame(void)
 	for (int i = 0; i < stackIdx+1; i++)
 	{
 	    Card* card = &cards[lastCardIdx]; 
-	    AppendCard(&cardStacks[stackIdx],card); 
+	    AppendCardToEnd(&cardStacks[stackIdx],card); 
 	    lastCardIdx += 1;
 	}
 
@@ -356,7 +357,7 @@ void InitGame(void)
 
     for(int i = lastCardIdx; i < CARD_COUNT; i++)
     {
-	AppendCard(&remainderHead, &cards[i]);
+	AppendCardToEnd(&remainderHead, &cards[i]);
     }
 
     for (int i = 0; i < CARD_STACK_COUNT; i++)
@@ -398,9 +399,24 @@ void UpdateGame(void)
 	    Card* cardUnderCoursor = GetSelectedCard(cards);
 	    if (cardUnderCoursor != NULL && FindHead(cardUnderCoursor) == &remainderHead)
 	    {
-		AppendCard(&openRemainderHead, cardUnderCoursor);
+		assert(cardUnderCoursor->next == NULL); 
+		assert(FindLast(&remainderHead) == cardUnderCoursor);
+
+		TraceLog(LOG_DEBUG, "Handling click on remaining cards");
+		if (openRemainderHead.next != NULL)
+		{
+		    Card* cardToMoveBack = openRemainderHead.next;
+		    cardToMoveBack->rect.x = remainderHead.rect.x;
+		    cardToMoveBack->rect.y = remainderHead.rect.y;
+		    cardToMoveBack->side = CS_BACK;
+		    InsertCardBehind(&remainderHead, openRemainderHead.next);
+		}
+
+		AppendCardToEnd(&openRemainderHead, cardUnderCoursor);
 		cardUnderCoursor->side = CS_FRONT;
+
 		ResetCardPosition(cardUnderCoursor);
+
 	    }
 	}
 
@@ -408,7 +424,7 @@ void UpdateGame(void)
 	{
 	    Card* cardToExpose = selectedCard->prev;
 
-	    AppendCard(dropTargetCard, selectedCard);
+	    AppendCardToEnd(dropTargetCard, selectedCard);
 	    dropTargetCard = NULL;
 
 	    if (cardToExpose != NULL)
@@ -545,4 +561,31 @@ Card* FindHead(Card* card)
 
     // should not be possible
     assert(false);
+}
+
+void InsertCardBehind(Card* targetCard, Card* cardToInsert)
+{
+    assert(targetCard != NULL);
+    assert(cardToInsert != NULL);
+
+    Card* oldNextCard = targetCard->next;
+    Card* lastCardToInsert = FindLast(cardToInsert);
+
+    assert (lastCardToInsert != NULL);
+    assert (lastCardToInsert->next == NULL);
+
+    targetCard->next = cardToInsert;
+
+    if (cardToInsert->prev != NULL)
+    {
+	cardToInsert->prev->next = NULL;
+    }
+
+    cardToInsert->prev = targetCard;
+    lastCardToInsert->next = oldNextCard;
+
+    if (oldNextCard != NULL)
+    {
+	oldNextCard->prev = lastCardToInsert;
+    }
 }
