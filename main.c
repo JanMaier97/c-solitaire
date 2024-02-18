@@ -73,6 +73,11 @@ bool CanDropCard(Card* targetCard, Card* cardToDrop)
 	return true;
     }
 
+    if (cardToDrop->value == MAX_CARD_VALUE && targetCard->type == HEAD_CARD)
+    {
+	return true;
+    }
+
     return false;
 }
 
@@ -416,7 +421,6 @@ void UpdateGame(void)
 		cardUnderCoursor->side = CS_FRONT;
 
 		ResetCardPosition(cardUnderCoursor);
-
 	    }
 	}
 
