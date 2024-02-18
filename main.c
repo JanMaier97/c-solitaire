@@ -445,6 +445,11 @@ void UpdateGame(void)
 	    cards[i].highlight = HL_NONE;
 	}
 
+	for (int i=0; i < CARD_STACK_COUNT; i++)
+	{
+	    cardStacks[i].highlight = HL_NONE;
+	}
+
 	selectedCard = NULL;
     }
 
@@ -460,7 +465,7 @@ void UpdateGame(void)
 	    currentCard = currentCard->next;
 	}
 
-	// detect collisions with cards
+	// detect collisions with card stacks
 	for (int i = 0; i < CARD_STACK_COUNT; i++)
 	{
 	    Card* topCard = FindLast(&cardStacks[i]);
